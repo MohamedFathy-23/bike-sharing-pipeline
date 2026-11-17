@@ -7,35 +7,85 @@ CREATE SCHEMA IF NOT EXISTS audit;
 CREATE SCHEMA IF NOT EXISTS marts;
 
 -- Raw copy of hour.csv, loaded exactly as received (no constraints, so every source row can be loaded)
+-- Raw data: preserve all source values as TEXT
 CREATE TABLE IF NOT EXISTS staging.stg_bike_hourly (
-    instant     INTEGER,
-    dteday      TEXT,          -- YYYY-MM-DD as in the source file, converted to DATE in core
-    season      SMALLINT,
-    yr          SMALLINT,
-    mnth        SMALLINT,
-    hr          SMALLINT,
-    holiday     SMALLINT,
-    weekday     SMALLINT,
-    workingday  SMALLINT,
-    weathersit  SMALLINT,
-    temp        NUMERIC(6,4),
-    atemp       NUMERIC(6,4),
-    hum         NUMERIC(6,4),
-    windspeed   NUMERIC(6,4),
-    casual      INTEGER,
-    registered  INTEGER,
-    cnt         INTEGER,
-    loaded_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    instant TEXT,
+    dteday TEXT,
+    season TEXT,
+    yr TEXT,
+    mnth TEXT,
+    hr TEXT,
+    holiday TEXT,
+    weekday TEXT,
+    workingday TEXT,
+    weathersit TEXT,
+    temp TEXT,
+    atemp TEXT,
+    hum TEXT,
+    windspeed TEXT,
+    casual TEXT,
+    registered TEXT,
+    cnt TEXT,
+    ingestion_id BIGINT,
+    loaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Rows that fail a validation rule
-CREATE TABLE IF NOT EXISTS audit.rejected_records (
-    reject_id       BIGSERIAL PRIMARY KEY,
-    source_instant  INTEGER,
-    failed_rule     TEXT NOT NULL,
-    raw_record      JSONB,
-    rejected_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+-- Migration for databases where the Phase 1 table already exists
+ALTER TABLE staging.stg_bike_hourly
+    ALTER COLUMN instant TYPE TEXT USING instant::TEXT,
+    ALTER COLUMN dteday TYPE TEXT USING dteday::TEXT,
+    ALTER COLUMN season TYPE TEXT USING season::TEXT,
+    ALTER COLUMN yr TYPE TEXT USING yr::TEXT,
+    ALTER COLUMN mnth TYPE TEXT USING mnth::TEXT,
+    ALTER COLUMN hr TYPE TEXT USING hr::TEXT,
+    ALTER COLUMN holiday TYPE TEXT USING holiday::TEXT,
+    ALTER COLUMN weekday TYPE TEXT USING weekday::TEXT,
+    ALTER COLUMN workingday TYPE TEXT USING workingday::TEXT,
+    ALTER COLUMN weathersit TYPE TEXT USING weathersit::TEXT,
+    ALTER COLUMN temp TYPE TEXT USING temp::TEXT,
+    ALTER COLUMN atemp TYPE TEXT USING atemp::TEXT,
+    ALTER COLUMN hum TYPE TEXT USING hum::TEXT,
+    ALTER COLUMN windspeed TYPE TEXT USING windspeed::TEXT,
+    ALTER COLUMN casual TYPE TEXT USING casual::TEXT,
+    ALTER COLUMN registered TYPE TEXT USING registered::TEXT,
+    ALTER COLUMN cnt TYPE TEXT USING cnt::TEXT;
+
+ALTER TABLE staging.stg_bike_hourly
+    ADD COLUMN IF NOT EXISTS ingestion_id BIGINT;
+
+ALTER TABLE staging.stg_bike_hourly
+    ADD COLUMN IF NOT EXISTS loaded_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+-- ==========================================
+-- PHASE 2: INGESTION AUDIT LOG
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS audit.ingestion_log (
+    ingestion_id BIGSERIAL PRIMARY KEY,
+    source_url TEXT NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at TIMESTAMPTZ,
+    status TEXT NOT NULL,
+    source_status TEXT,
+    rows_fetched INTEGER,
+    rows_loaded INTEGER,
+    file_sha256 TEXT,
+    landing_file TEXT,
+    error_message TEXT
 );
+
+-- ==========================================
+-- PHASE 1: REJECTED RECORDS
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS audit.rejected_records (
+    reject_id BIGSERIAL PRIMARY KEY,
+    source_instant INTEGER,
+    failed_rule TEXT NOT NULL,
+    raw_record JSONB,
+    rejected_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 
 -- Dimensions (season attributes live in dim_date; no separate dim_season)
 CREATE TABLE IF NOT EXISTS core.dim_date (

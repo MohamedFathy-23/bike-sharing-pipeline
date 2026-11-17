@@ -38,6 +38,28 @@ services:
     networks:
       - bike_net
 
+  ingestion:
+    build: .
+    image: bike-ingestion:phase2
+    container_name: bike_ingestion
+    restart: "no"          # runs once and exits; re-run with: docker compose run --rm ingestion
+    environment:
+      POSTGRES_HOST: postgres          # service name on bike_net, not localhost
+      POSTGRES_PORT_INTERNAL: 5432     # port inside the network, not the published host port
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      INGEST_SOURCE_URL: ${INGEST_SOURCE_URL:-https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip}
+      INGEST_ALLOW_LOCAL_FALLBACK: ${INGEST_ALLOW_LOCAL_FALLBACK:-true}
+      INGEST_MAX_RETRIES: ${INGEST_MAX_RETRIES:-3}
+    volumes:
+      - ./data:/app/data   # reads data/raw/hour.csv (fallback), writes raw copies to data/landing/
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bike_net
+
 volumes:
   postgres_data:
   pgadmin_data:
