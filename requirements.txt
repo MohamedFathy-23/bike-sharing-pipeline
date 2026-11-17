@@ -1,0 +1,4 @@
+pandas
+sqlalchemy
+psycopg2-binary
+reportlab  # only to rebuild docs/Phase1_Proposal.pdf
