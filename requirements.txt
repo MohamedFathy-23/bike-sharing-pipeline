@@ -1,6 +1,3 @@
 
-pandas
-sqlalchemy
-psycopg2-binary
 requests
-reportlab
+psycopg2-binary

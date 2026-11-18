@@ -8,8 +8,7 @@ WORKDIR /app
 
 # Dependencies first, so this layer is cached until requirements.txt changes
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
+RUN pip install --no-cache-dir --default-timeout=300 --retries 10 -r requirements.txt
 # Only the code and SQL are copied. Secrets come from environment variables, data from a mounted volume.
 COPY scripts/ ./scripts/
 COPY sql/ ./sql/
